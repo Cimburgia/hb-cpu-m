@@ -1,5 +1,5 @@
 all:
-	gcc main.c -o prog
+	gcc main.c -framework IOKit -framework CoreFoundation
 
 clean:
 	rm -f prog
