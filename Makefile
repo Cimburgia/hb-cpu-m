@@ -2,4 +2,4 @@ all:
 	gcc main.c -framework IOKit -framework CoreFoundation
 
 clean:
-	rm -f prog
+	rm -f a.out
