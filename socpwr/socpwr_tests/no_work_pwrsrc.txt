@@ -1,0 +1,71 @@
+Apple M2 T8112 (Sample 1):
+
+	4-Core Blizzard ECPU:
+
+		Instructions Retired:   1.37989e+08
+		Instructions Per-Clock: 1.05108
+
+		Power Consumption: 54.55 mW
+		Active Frequency:  1193.39 MHz
+		Active Residency:  27.5%
+		Dvfs Distribution: 912MHz: 70.57%   1284MHz: 6.08%   1752MHz: 10.90%   2004MHz: 4.99%   2424MHz: 7.45%   
+
+		Core 0:
+			Power Consumption: 10.91 mW
+			Active Frequency:  1225.64 MHz
+			Active Residency:  14.6%
+			Dvfs Distribution: 912MHz: 63.96%   1284MHz: 8.48%   1752MHz: 18.71%   2004MHz: 2.11%   2424MHz: 6.74%   
+		Core 1:
+			Power Consumption: 7.27 mW
+			Active Frequency:  1088.67 MHz
+			Active Residency:  14.0%
+			Dvfs Distribution: 912MHz: 81.08%   1284MHz: 6.23%   1752MHz: 4.98%   2004MHz: 1.16%   2424MHz: 6.55%   
+		Core 2:
+			Power Consumption: 7.27 mW
+			Active Frequency:  1437.59 MHz
+			Active Residency:  6.4%
+			Dvfs Distribution: 912MHz: 52.76%   1284MHz: 5.26%   1752MHz: 15.79%   2004MHz: 5.38%   2424MHz: 20.81%   
+		Core 3:
+			Power Consumption: 7.27 mW
+			Active Frequency:  1208.68 MHz
+			Active Residency:  9.6%
+			Dvfs Distribution: 912MHz: 67.70%   1284MHz: 6.50%   1752MHz: 12.21%   2004MHz: 8.46%   2424MHz: 5.13%   
+
+	4-Core Avalanche PCPU:
+
+		Instructions Retired:   3.25607e+08
+		Instructions Per-Clock: 2.55973
+
+		Power Consumption: 236.36 mW
+		Active Frequency:  1897.07 MHz
+		Active Residency:  17.6%
+		Dvfs Distribution: 660MHz: 0.86%   1188MHz: 2.72%   1452MHz: 15.83%   1704MHz: 31.91%   1968MHz: 35.19%   2208MHz: 5.85%   2568MHz: 0.35%   3096MHz: 0.18%   3504MHz: 7.11%   
+
+		Core 4:
+			Power Consumption: 61.82 mW
+			Active Frequency:  2016.19 MHz
+			Active Residency:  10.4%
+			Dvfs Distribution: 660MHz: 1.21%   1188MHz: 1.62%   1452MHz: 10.98%   1704MHz: 30.59%   1968MHz: 33.01%   2208MHz: 9.72%   2568MHz: 0.59%   3096MHz: 0.31%   3504MHz: 11.97%   
+		Core 5:
+			Power Consumption: 32.73 mW
+			Active Frequency:  1809.62 MHz
+			Active Residency:  7.1%
+			Dvfs Distribution: 660MHz: 0.12%   1188MHz: 5.83%   1452MHz: 12.39%   1704MHz: 31.23%   1968MHz: 35.99%   2208MHz: 14.38%   2568MHz: 0.03%   3096MHz: 0.03%   
+		Core 6:
+			Power Consumption: 50.91 mW
+			Active Frequency:  1754.89 MHz
+			Active Residency:  10.0%
+			Dvfs Distribution: 660MHz: 0.26%   1188MHz: 0.73%   1452MHz: 22.00%   1704MHz: 36.87%   1968MHz: 37.23%   2208MHz: 2.90%   
+		Core 7:
+			Power Consumption: 10.91 mW
+			Active Frequency:  1765.08 MHz
+			Active Residency:  2.3%
+			Dvfs Distribution: 1188MHz: 1.05%   1452MHz: 8.33%   1704MHz: 62.87%   1968MHz: 21.82%   2208MHz: 5.93%   
+
+	10-Core Integrated Graphics:
+
+		Power Consumption: 0.00 mW
+		Active Frequency:  444 MHz
+		Active Residency:  0.6%
+		Dvfs Distribution: 444MHz: 100.00%   
+
