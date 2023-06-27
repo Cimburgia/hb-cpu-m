@@ -3,7 +3,7 @@ FRAMEWORKS =-lIOReport -framework IOKit -framework CoreFoundation -framework Sys
 
 
 all:
-	gcc main.c $(FRAMEWORKS) -g
+	gcc main.c $(FRAMEWORKS)
 
 clean:
 	rm -f a.out
