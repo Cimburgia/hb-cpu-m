@@ -19,6 +19,7 @@ typedef struct unit_data {
         IOReportSubscriptionRef cpu_sub;
         CFMutableDictionaryRef cpu_sub_chann;
         CFMutableDictionaryRef cpu_chann;
+        CFMutableDictionaryRef gpu_chann;
     } soc_samples;
 } unit_data;
 
@@ -34,10 +35,16 @@ static inline void get_core_counts(unit_data* unit_data);
 static inline void init_unit_data(unit_data* data) {
     memset((void*)data, 0, sizeof(unit_data));
     
+    //Initialize channels
     data->soc_samples.cpu_chann = IOReportCopyChannelsInGroup(CFSTR("CPU Stats"), 0, 0, 0, 0);
+    data->soc_samples.gpu_chann = IOReportCopyChannelsInGroup(CFSTR("GPU Stats"), 0, 0, 0, 0);
+    // Merge GPU and CPU channel
+    IOReportMergeChannels(data->soc_samples.cpu_chann, data->soc_samples.gpu_chann, NULL);
+    // Create subscription
     data->soc_samples.cpu_sub  = IOReportCreateSubscription(NULL, data->soc_samples.cpu_chann, &data->soc_samples.cpu_sub_chann, 0, 0);
     
     CFRelease(data->soc_samples.cpu_chann);
+    CFRelease(data->soc_samples.gpu_chann);
 }
 
 static void sample(unit_data* unit_data) {
@@ -67,6 +74,7 @@ static void sample(unit_data* unit_data) {
                     
                     // Make sure channel name is correct
                     if (CFStringCompare(chann_name, (CFStringRef)CFArrayGetValueAtIndex(complex_chann_keys, ii),0) != kCFCompareEqualTo) continue;
+                    
                     // Make sure there is an active residency
                     if (CFStringFind(idx_name, ptype_state, 0).location != kCFNotFound || 
                         CFStringFind(idx_name, vtype_state, 0).location != kCFNotFound){
