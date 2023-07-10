@@ -1,9 +1,20 @@
 
 #import "main.h"
+/*
+    Notes:
 
+    make sure data collection knows when it failed:
+        - scheduled on core it wasn't supposed to run
+        - or switch cores
+    if this happens throw away that run
+
+    is there a way to see what core you are running on?
+*/
 /* data structs
 */
 typedef struct unit_data {
+    //int percluster_ncores[];
+    
     struct {
         IOReportSubscriptionRef cpu_sub;
         CFMutableDictionaryRef cpu_sub_chann;
@@ -15,6 +26,7 @@ typedef struct unit_data {
  */
 static inline void init_unit_data(unit_data* data);
 static void sample(unit_data* unit_data);
+static inline void get_core_counts(unit_data* unit_data);
 
 static inline void init_unit_data(unit_data* data) {
     memset((void*)data, 0, sizeof(unit_data));
@@ -30,16 +42,43 @@ static void sample(unit_data* unit_data) {
     CFDictionaryRef cpusamp_b  = IOReportCreateSamples(unit_data->soc_samples.cpu_sub, unit_data->soc_samples.cpu_sub_chann, NULL);
     CFDictionaryRef cpu_delta  = IOReportCreateSamplesDelta(cpusamp_a, cpusamp_b, NULL);
     
+    // Done with these
+    CFRelease(cpusamp_a);
+    CFRelease(cpusamp_b);
+
     IOReportIterate(cpu_delta, ^int(IOReportSampleRef sample) {
         for (int i = 0; i < IOReportStateGetCount(sample); i++) {
-            CFShow(sample);
+            CFStringRef subgroup    = IOReportChannelGetSubGroup(sample);
+            CFStringRef idx_name    = IOReportStateGetNameForIndex(sample, i);
+            CFStringRef chann_name  = IOReportChannelGetChannelName(sample);
+            uint64_t  residency   = IOReportStateGetResidency(sample, i);
+            
+            // Ecore and Pcore
+            int n_cores_hc = 2;
+            const void *values[] = {CFSTR("ECPU"), CFSTR("PCPU"), CFSTR("GPUPH")};
+            CFArrayRef string_array = CFArrayCreate(kCFAllocatorDefault, values, 3, &kCFTypeArrayCallBacks);
+
+            for (int ii = 0; ii < n_cores_hc + 1; ii++) {
+                if (CFStringCompare(subgroup, CFSTR("CPU Complex Performance States"), 0) == kCFCompareEqualTo ||
+                    CFStringCompare(subgroup, CFSTR("GPU Performance States"), 0) == kCFCompareEqualTo) {
+                    
+                    // Make sure channel name is correct
+
+                    if(CFStringCompare(chann_name, (CFStringRef)CFArrayGetValueAtIndex(string_array, ii),0) != kCFCompareEqualTo) continue;
+                    CFShow(chann_name);
+                }
+                else if (CFStringCompare(subgroup, CFSTR("CPU Core Performance States"), 0) == kCFCompareEqualTo) {
+                    //CFShow(subgroup);
+                    continue;
+                }
+            }
         }
         return kIOReportIterOk;
     });
     CFRelease(cpu_delta);
 }
 
-int main(int argc, char * argv[]) {
+int main(int argc, char* argv[]) {
     unit_data* unit = malloc(sizeof(unit_data));
 
     // initialize the cmd_data

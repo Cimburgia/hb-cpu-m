@@ -28,6 +28,9 @@ extern int IOReportStateGetCount(CFDictionaryRef);
 extern uint64_t IOReportStateGetResidency(CFDictionaryRef, int);
 extern uint64_t IOReportArrayGetValueAtIndex(CFDictionaryRef, int);
 extern long IOReportSimpleGetIntegerValue(CFDictionaryRef, int);
+extern CFStringRef IOReportChannelGetChannelName(CFDictionaryRef);
+extern CFStringRef IOReportChannelGetSubGroup(CFDictionaryRef);
+extern CFStringRef IOReportStateGetNameForIndex(CFDictionaryRef, int);
 
 extern void IOReportMergeChannels(CFMutableDictionaryRef, CFMutableDictionaryRef, CFTypeRef);
 
