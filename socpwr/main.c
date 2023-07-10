@@ -22,6 +22,9 @@ typedef struct unit_data {
     } soc_samples;
 } unit_data;
 
+static CFStringRef ptype_state = CFSTR("P");
+static CFStringRef vtype_state = CFSTR("V");
+
 /* defs
  */
 static inline void init_unit_data(unit_data* data);
@@ -52,20 +55,23 @@ static void sample(unit_data* unit_data) {
             CFStringRef idx_name    = IOReportStateGetNameForIndex(sample, i);
             CFStringRef chann_name  = IOReportChannelGetChannelName(sample);
             uint64_t  residency   = IOReportStateGetResidency(sample, i);
-            
+            //CFShow(idx_name);
             // Ecore and Pcore
             int n_cores_hc = 2;
-            const void *values[] = {CFSTR("ECPU"), CFSTR("PCPU"), CFSTR("GPUPH")};
-            CFArrayRef string_array = CFArrayCreate(kCFAllocatorDefault, values, 3, &kCFTypeArrayCallBacks);
+            const void *complex_chann_keys_hc[] = {CFSTR("ECPU"), CFSTR("PCPU"), CFSTR("GPUPH")};
+            CFArrayRef complex_chann_keys = CFArrayCreate(kCFAllocatorDefault, complex_chann_keys_hc, 3, &kCFTypeArrayCallBacks);
 
             for (int ii = 0; ii < n_cores_hc + 1; ii++) {
                 if (CFStringCompare(subgroup, CFSTR("CPU Complex Performance States"), 0) == kCFCompareEqualTo ||
                     CFStringCompare(subgroup, CFSTR("GPU Performance States"), 0) == kCFCompareEqualTo) {
                     
                     // Make sure channel name is correct
-
-                    if(CFStringCompare(chann_name, (CFStringRef)CFArrayGetValueAtIndex(string_array, ii),0) != kCFCompareEqualTo) continue;
-                    CFShow(chann_name);
+                    if (CFStringCompare(chann_name, (CFStringRef)CFArrayGetValueAtIndex(complex_chann_keys, ii),0) != kCFCompareEqualTo) continue;
+                    // Make sure there is an active residency
+                    if (CFStringFind(idx_name, ptype_state, 0).location != kCFNotFound || 
+                        CFStringFind(idx_name, vtype_state, 0).location != kCFNotFound){
+                        CFShow(idx_name);
+                    }
                 }
                 else if (CFStringCompare(subgroup, CFSTR("CPU Core Performance States"), 0) == kCFCompareEqualTo) {
                     //CFShow(subgroup);
