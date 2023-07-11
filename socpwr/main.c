@@ -13,11 +13,11 @@
 /* data structs
 */
 typedef struct cpu_samples_perf_data{
-    uint64_t *sums; /* sum of state distribution ticks per-cluster */
+    CFMutableArrayRef sums; /* sum of state distribution ticks per-cluster */
     CFMutableArrayRef distribution; /* distribution[CLUSTER][STATE]: distribution of individual states */
     // CFMutableArrayRef *freqs; /* calculated "active" frequency per-cluster */
     // CFMutableArrayRef *volts; /* calculated "active" voltage per-cluster */
-    // CFMutableArrayRef *residency; /* calculated "active" usage/residency per-cluster */
+    CFMutableArrayRef residency; /* calculated "active" usage/residency per-cluster */
 } cpu_samples_perf_data;
 
 typedef struct unit_data {
@@ -32,7 +32,10 @@ typedef struct unit_data {
     } soc_samples;
 } unit_data;
 
+// Hard coded values
 static int n_cores_hc = 2;
+static int per_cluster_n_cores = 4;
+
 static CFStringRef ptype_state = CFSTR("P");
 static CFStringRef vtype_state = CFSTR("V");
 static CFStringRef idletype_state = CFSTR("IDLE");
@@ -49,12 +52,21 @@ static inline void init_unit_data(unit_data* data) {
     memset((void*)data, 0, sizeof(unit_data));
     
     cpu_samples_perf_data* cluster_perf_data = &data->soc_samples.cluster_perf_data;
-    cluster_perf_data->sums = calloc(3, sizeof(uint64_t));
+    cluster_perf_data->sums = CFArrayCreateMutable(kCFAllocatorDefault, 3, &kCFTypeArrayCallBacks);
     cluster_perf_data->distribution = CFArrayCreateMutable(kCFAllocatorDefault, 0, &kCFTypeArrayCallBacks);
+    cluster_perf_data->residency =  CFArrayCreateMutable(kCFAllocatorDefault, 3, &kCFTypeArrayCallBacks);
     
     /* init for each cluster and core */
     for (int i = 0; i < n_cores_hc + 1; i++) {
         CFArrayAppendValue(cluster_perf_data->distribution, CFArrayCreateMutable(kCFAllocatorDefault, 0, &kCFTypeArrayCallBacks));
+        CFArrayAppendValue(cluster_perf_data->residency, CFNumberCreate(kCFAllocatorDefault, kCFNumberLongLongType, &(uint64_t){0}));
+        CFArrayAppendValue(cluster_perf_data->sums, CFNumberCreate(kCFAllocatorDefault, kCFNumberLongLongType, &(uint64_t){0}));
+
+        if (i < n_cores_hc){
+             for (int ii = 0; ii < per_cluster_n_cores; ii++) {
+                
+             }
+        }
     }
 
     //Initialize channels
@@ -72,10 +84,12 @@ static inline void init_unit_data(unit_data* data) {
 }
 
 static void sample(unit_data* unit_data) {
+    CFArrayRef complex_freq_chankeys = CFArrayCreate(kCFAllocatorDefault, (const void *[]){CFSTR("ECPU"), CFSTR("PCPU"), CFSTR("GPUPH")}, 3, &kCFTypeArrayCallBacks);
+    CFArrayRef core_freq_chankeys = CFArrayCreate(kCFAllocatorDefault, (const void *[]){CFSTR("ECPU"), CFSTR("PCPU")}, 2, &kCFTypeArrayCallBacks);
+    
     CFDictionaryRef cpusamp_a  = IOReportCreateSamples(unit_data->soc_samples.cpu_sub, unit_data->soc_samples.cpu_sub_chann, NULL);
     CFDictionaryRef cpusamp_b  = IOReportCreateSamples(unit_data->soc_samples.cpu_sub, unit_data->soc_samples.cpu_sub_chann, NULL);
     usleep(275 * 1e-3);
-   
     CFDictionaryRef cpu_delta  = IOReportCreateSamplesDelta(cpusamp_a, cpusamp_b, NULL);
     
     // Done with these
@@ -90,38 +104,51 @@ static void sample(unit_data* unit_data) {
             uint64_t residency   = IOReportStateGetResidency(sample, i);
             
             // Ecore and Pcore
-            const void *complex_chann_keys_hc[] = {CFSTR("ECPU"), CFSTR("PCPU"), CFSTR("GPUPH")};
-            CFArrayRef complex_chann_keys = CFArrayCreate(kCFAllocatorDefault, complex_chann_keys_hc, 3, &kCFTypeArrayCallBacks);
-        
             for (int ii = 0; ii < n_cores_hc + 1; ii++) {
                 if (CFStringCompare(subgroup, CFSTR("CPU Complex Performance States"), 0) == kCFCompareEqualTo ||
                     CFStringCompare(subgroup, CFSTR("GPU Performance States"), 0) == kCFCompareEqualTo) {
                     
-                    if (CFStringCompare(chann_name, (CFStringRef)CFArrayGetValueAtIndex(complex_chann_keys, ii),0) != kCFCompareEqualTo) continue;
+                    if (CFStringCompare(chann_name, (CFStringRef)CFArrayGetValueAtIndex(complex_freq_chankeys, ii),0) != kCFCompareEqualTo) continue;
             
                     // Make sure there is an active residency
                     if (CFStringFind(idx_name, ptype_state, 0).location != kCFNotFound || 
                         CFStringFind(idx_name, vtype_state, 0).location != kCFNotFound){
-                        
+                
                         // Sum all for complex
-                        uint64_t sum = unit_data->soc_samples.cluster_perf_data.sums[ii] + residency;
+                        uint64_t sum;
+                        CFNumberRef old_sum = (CFNumberRef)CFArrayGetValueAtIndex(unit_data->soc_samples.cluster_perf_data.sums, ii);
+                        CFNumberGetValue(old_sum, kCFNumberSInt64Type, &sum);
+                        uint64_t new_sum = sum + residency;
+                        CFArraySetValueAtIndex(unit_data->soc_samples.cluster_perf_data.sums, ii, CFNumberCreate(kCFAllocatorDefault, kCFNumberSInt64Type, &new_sum));
+
                         CFMutableArrayRef comp_distribution = (CFMutableArrayRef)CFArrayGetValueAtIndex(unit_data->soc_samples.cluster_perf_data.distribution, ii);
                         CFNumberRef distribution = CFNumberCreate(kCFAllocatorDefault, kCFNumberLongLongType, &residency);
                         CFArrayAppendValue(comp_distribution, distribution);
-                        unit_data->soc_samples.cluster_perf_data.sums[ii] = sum + residency;
                         
                         sum = 0;
                         CFRelease(distribution);
                     }
                     else if (CFStringFind(idx_name, idletype_state, 0).location != kCFNotFound || 
                             CFStringFind(idx_name, offtype_state, 0).location != kCFNotFound){
-                            
+                        CFArraySetValueAtIndex(unit_data->soc_samples.cluster_perf_data.residency, ii, CFNumberCreate(kCFAllocatorDefault, kCFNumberLongLongType, &residency));
                     }
                 }
                 else if (CFStringCompare(subgroup, CFSTR("CPU Core Performance States"), 0) == kCFCompareEqualTo &&
                         ii < n_cores_hc) {
-                    // CFShow(chann_name);
-                    // printf("%llu\n", residency);
+                    for (int iii = 0; iii < per_cluster_n_cores; iii++) {
+                        CFStringRef key = CFStringCreateWithFormat(kCFAllocatorDefault, NULL, CFSTR("%@%d"), (CFStringRef)CFArrayGetValueAtIndex(complex_freq_chankeys, ii), iii);
+                        
+                        if (CFStringCompare(chann_name, key, 0) != kCFCompareEqualTo){
+                            CFRelease(key);
+                            continue;
+                        }
+                        // active residency
+                        if (CFStringFind(idx_name, ptype_state, 0).location != kCFNotFound || 
+                        CFStringFind(idx_name, vtype_state, 0).location != kCFNotFound){
+                            
+                        }
+
+                    }
                 }
             }
             chann_name = NULL;
@@ -139,8 +166,12 @@ int main(int argc, char* argv[]) {
     // initialize the cmd_data
     init_unit_data(unit);
     sample(unit);
-    for (int i = 0; i < 3; i++){
-        printf("%llu\n", unit->soc_samples.cluster_perf_data.sums[i]);
+    CFIndex count = CFArrayGetCount(unit->soc_samples.cluster_perf_data.sums);
+    for (CFIndex i = 0; i < count; i++) {
+        CFNumberRef number = (CFNumberRef)CFArrayGetValueAtIndex(unit->soc_samples.cluster_perf_data.sums, i);
+        uint64_t value;
+        CFNumberGetValue(number, kCFNumberLongLongType, &value);
+        printf("Item %ld is %llu\n", i, value);
     }
 }
 
