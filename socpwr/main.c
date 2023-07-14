@@ -133,7 +133,7 @@ static void sample(unit_data* unit_data) {
                     // Make sure there is an active residency
                     if (CFStringFind(idx_name, ptype_state, 0).location != kCFNotFound || 
                         CFStringFind(idx_name, vtype_state, 0).location != kCFNotFound){
-                
+                        printf("%llu\n", residency);
                         // Sum all for complex
                         uint64_t sum;
                         CFNumberRef old_sum = (CFNumberRef)CFArrayGetValueAtIndex(unit_data->soc_samples.cluster_perf_data.sums, ii);
@@ -164,8 +164,27 @@ static void sample(unit_data* unit_data) {
                         // active residency
                         if (CFStringFind(idx_name, ptype_state, 0).location != kCFNotFound ||
                             CFStringFind(idx_name, vtype_state, 0).location != kCFNotFound){
-
-
+                            CFMutableArrayRef sum_array = (CFMutableArrayRef)CFArrayGetValueAtIndex(unit_data->soc_samples.core_perf_data.sums, ii);
+                            CFMutableArrayRef distribution_array = (CFMutableArrayRef)CFArrayGetValueAtIndex(unit_data->soc_samples.core_perf_data.distribution, ii);
+                            
+                            // Sum
+                            uint64_t sum;
+                            CFNumberRef old_sum = (CFNumberRef)CFArrayGetValueAtIndex(sum_array, iii);
+                            CFNumberGetValue(old_sum, kCFNumberSInt64Type, &sum);
+                            uint64_t new_sum = sum + residency;
+                            CFArraySetValueAtIndex(sum_array, iii, CFNumberCreate(kCFAllocatorDefault, kCFNumberSInt64Type, &new_sum));
+                            // Dist
+                            CFMutableArrayRef comp_distribution = (CFMutableArrayRef)CFArrayGetValueAtIndex(distribution_array, iii);
+                            CFNumberRef distribution = CFNumberCreate(kCFAllocatorDefault, kCFNumberLongLongType, &residency);
+                            CFArrayAppendValue(comp_distribution, distribution);
+                           
+                            sum = 0;
+                            CFRelease(distribution);
+                        }
+                        else if (CFStringFind(idx_name, idletype_state, 0).location != kCFNotFound || 
+                            CFStringFind(idx_name, offtype_state, 0).location != kCFNotFound){
+                            CFMutableArrayRef residency_array = (CFMutableArrayRef)CFArrayGetValueAtIndex(unit_data->soc_samples.core_perf_data.residency, ii);
+                            CFArraySetValueAtIndex(residency_array, iii, CFNumberCreate(kCFAllocatorDefault, kCFNumberSInt64Type, &residency));   
                         }
 
                     }
