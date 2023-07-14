@@ -44,17 +44,22 @@ static CFStringRef offtype_state = CFSTR("OFF");
 
 /* defs
  */
-static inline void init_unit_data(unit_data* data);
-static void sample(unit_data* unit_data);
-static inline void get_core_counts(unit_data* unit_data);
+static inline void init_unit_data(unit_data *data);
+static void sample(unit_data *unit_data);
 
-static inline void init_unit_data(unit_data* data) {
+static inline void init_unit_data(unit_data *data) {
     memset((void*)data, 0, sizeof(unit_data));
     
-    cpu_samples_perf_data* cluster_perf_data = &data->soc_samples.cluster_perf_data;
+    cpu_samples_perf_data *cluster_perf_data = &data->soc_samples.cluster_perf_data;
+    cpu_samples_perf_data *core_perf_data = &data->soc_samples.core_perf_data;
+
     cluster_perf_data->sums = CFArrayCreateMutable(kCFAllocatorDefault, 3, &kCFTypeArrayCallBacks);
     cluster_perf_data->distribution = CFArrayCreateMutable(kCFAllocatorDefault, 0, &kCFTypeArrayCallBacks);
     cluster_perf_data->residency =  CFArrayCreateMutable(kCFAllocatorDefault, 3, &kCFTypeArrayCallBacks);
+
+    core_perf_data->sums = CFArrayCreateMutable(kCFAllocatorDefault, 0, &kCFTypeArrayCallBacks);
+    core_perf_data->distribution = CFArrayCreateMutable(kCFAllocatorDefault, 0, &kCFTypeArrayCallBacks);
+    core_perf_data->residency =  CFArrayCreateMutable(kCFAllocatorDefault, 0, &kCFTypeArrayCallBacks);
     
     /* init for each cluster and core */
     for (int i = 0; i < n_cores_hc + 1; i++) {
@@ -63,9 +68,24 @@ static inline void init_unit_data(unit_data* data) {
         CFArrayAppendValue(cluster_perf_data->sums, CFNumberCreate(kCFAllocatorDefault, kCFNumberLongLongType, &(uint64_t){0}));
 
         if (i < n_cores_hc){
-             for (int ii = 0; ii < per_cluster_n_cores; ii++) {
-                
-             }
+            CFMutableArrayRef dist_arr = CFArrayCreateMutable(kCFAllocatorDefault, per_cluster_n_cores, &kCFTypeArrayCallBacks);
+            CFMutableArrayRef residency_arr = CFArrayCreateMutable(kCFAllocatorDefault, per_cluster_n_cores, &kCFTypeArrayCallBacks);
+            CFMutableArrayRef sums_arr = CFArrayCreateMutable(kCFAllocatorDefault, per_cluster_n_cores, &kCFTypeArrayCallBacks);
+    
+            for (int ii = 0; ii < per_cluster_n_cores; ii++) {
+                CFNumberRef zero = CFNumberCreate(kCFAllocatorDefault, kCFNumberIntType, (const void*)&(int){0});
+                CFArrayAppendValue(dist_arr, CFArrayCreateMutable(kCFAllocatorDefault, 0, &kCFTypeArrayCallBacks));
+                CFArrayAppendValue(residency_arr, zero);
+                CFArrayAppendValue(sums_arr, zero);
+                CFRelease(zero);
+            }
+
+            CFArraySetValueAtIndex(core_perf_data->distribution, i, dist_arr);
+            CFArraySetValueAtIndex(core_perf_data->residency, i, residency_arr);
+            CFArraySetValueAtIndex(core_perf_data->sums, i, sums_arr);
+            CFRelease(dist_arr);
+            CFRelease(residency_arr);
+            CFRelease(sums_arr);
         }
     }
 
@@ -133,8 +153,7 @@ static void sample(unit_data* unit_data) {
                         CFArraySetValueAtIndex(unit_data->soc_samples.cluster_perf_data.residency, ii, CFNumberCreate(kCFAllocatorDefault, kCFNumberLongLongType, &residency));
                     }
                 }
-                else if (CFStringCompare(subgroup, CFSTR("CPU Core Performance States"), 0) == kCFCompareEqualTo &&
-                        ii < n_cores_hc) {
+                else if (CFStringCompare(subgroup, CFSTR("CPU Core Performance States"), 0) == kCFCompareEqualTo && ii < n_cores_hc) {
                     for (int iii = 0; iii < per_cluster_n_cores; iii++) {
                         CFStringRef key = CFStringCreateWithFormat(kCFAllocatorDefault, NULL, CFSTR("%@%d"), (CFStringRef)CFArrayGetValueAtIndex(complex_freq_chankeys, ii), iii);
                         
@@ -143,9 +162,10 @@ static void sample(unit_data* unit_data) {
                             continue;
                         }
                         // active residency
-                        if (CFStringFind(idx_name, ptype_state, 0).location != kCFNotFound || 
-                        CFStringFind(idx_name, vtype_state, 0).location != kCFNotFound){
-                            
+                        if (CFStringFind(idx_name, ptype_state, 0).location != kCFNotFound ||
+                            CFStringFind(idx_name, vtype_state, 0).location != kCFNotFound){
+
+
                         }
 
                     }
@@ -166,12 +186,5 @@ int main(int argc, char* argv[]) {
     // initialize the cmd_data
     init_unit_data(unit);
     sample(unit);
-    CFIndex count = CFArrayGetCount(unit->soc_samples.cluster_perf_data.sums);
-    for (CFIndex i = 0; i < count; i++) {
-        CFNumberRef number = (CFNumberRef)CFArrayGetValueAtIndex(unit->soc_samples.cluster_perf_data.sums, i);
-        uint64_t value;
-        CFNumberGetValue(number, kCFNumberLongLongType, &value);
-        printf("Item %ld is %llu\n", i, value);
-    }
 }
 
