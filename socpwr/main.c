@@ -108,8 +108,9 @@ static void sample(unit_data* unit_data) {
     CFArrayRef core_freq_chankeys = CFArrayCreate(kCFAllocatorDefault, (const void *[]){CFSTR("ECPU"), CFSTR("PCPU")}, 2, &kCFTypeArrayCallBacks);
     
     CFDictionaryRef cpusamp_a  = IOReportCreateSamples(unit_data->soc_samples.cpu_sub, unit_data->soc_samples.cpu_sub_chann, NULL);
+    usleep(275 * 1e3);
     CFDictionaryRef cpusamp_b  = IOReportCreateSamples(unit_data->soc_samples.cpu_sub, unit_data->soc_samples.cpu_sub_chann, NULL);
-    usleep(275 * 1e-3);
+  
     CFDictionaryRef cpu_delta  = IOReportCreateSamplesDelta(cpusamp_a, cpusamp_b, NULL);
     
     // Done with these
@@ -133,7 +134,7 @@ static void sample(unit_data* unit_data) {
                     // Make sure there is an active residency
                     if (CFStringFind(idx_name, ptype_state, 0).location != kCFNotFound || 
                         CFStringFind(idx_name, vtype_state, 0).location != kCFNotFound){
-                        printf("%llu\n", residency);
+                        //printf("%llu\n", residency);
                         // Sum all for complex
                         uint64_t sum;
                         CFNumberRef old_sum = (CFNumberRef)CFArrayGetValueAtIndex(unit_data->soc_samples.cluster_perf_data.sums, ii);
