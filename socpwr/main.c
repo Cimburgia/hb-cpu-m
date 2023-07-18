@@ -9,14 +9,15 @@
     if this happens throw away that run
 
     is there a way to see what core you are running on?
+
+    In hertzbleed, we want to sample on either end of some hertzbleed code THEN compute delta
 */
 /* data structs
 */
 typedef struct cpu_samples_perf_data{
     CFMutableArrayRef sums; /* sum of state distribution ticks per-cluster */
     CFMutableArrayRef distribution; /* distribution[CLUSTER][STATE]: distribution of individual states */
-    // CFMutableArrayRef *freqs; /* calculated "active" frequency per-cluster */
-    // CFMutableArrayRef *volts; /* calculated "active" voltage per-cluster */
+    CFMutableArrayRef freqs; /* calculated "active" frequency per-cluster */
     CFMutableArrayRef residency; /* calculated "active" usage/residency per-cluster */
 } cpu_samples_perf_data;
 
@@ -35,6 +36,11 @@ typedef struct unit_data {
 // Hard coded values
 static int n_cores_hc = 2;
 static int per_cluster_n_cores = 4;
+static float array1[] = {600, 912, 1284, 1752, 2004, 2256, 2424};
+static float array2[] = {660, 924, 1188, 1452, 1704, 1968, 2208, 2400, 2568, 2724, 2868, 2988, 3096, 3204, 3324, 3408, 3504};
+static float array3[] = {444, 612, 808, 968, 1110, 1236, 1338, 1398};
+
+static float* freq_state_cores[] = {array1, array2, array3};
 
 static CFStringRef ptype_state = CFSTR("P");
 static CFStringRef vtype_state = CFSTR("V");
@@ -46,6 +52,7 @@ static CFStringRef offtype_state = CFSTR("OFF");
  */
 static inline void init_unit_data(unit_data *data);
 static void sample(unit_data *unit_data);
+static void format(unit_data* unit_data);
 
 static inline void init_unit_data(unit_data *data) {
     memset((void*)data, 0, sizeof(unit_data));
@@ -200,11 +207,52 @@ static void sample(unit_data* unit_data) {
     CFRelease(cpu_delta);
 }
 
+static void format(unit_data* unit_data) {
+    uint64_t res = 0;
+    uint64_t core_res = 0;
+    
+    for (int i = 0; i < n_cores_hc + 1; i++) {
+        float complex_freq = 0;
+        // Add all frequency values
+        CFArrayRef complex_dists = CFArrayGetValueAtIndex(unit_data->soc_samples.cluster_perf_data.distribution, i);
+        for (int ii = 0; ii < CFArrayGetCount(complex_dists); ii++) {
+            CFNumberRef value = CFArrayGetValueAtIndex(complex_dists, ii);
+            CFNumberGetValue(value, kCFNumberSInt64Type, &res);
+            
+            if (res != 0){
+                float sum;
+                CFNumberRef sum_num = CFArrayGetValueAtIndex(unit_data->soc_samples.cluster_perf_data.sums, i);
+                CFNumberGetValue(sum_num, kCFNumberFloatType, &sum);
+                float percent = (res / sum);
+                complex_freq = complex_freq + (freq_state_cores[i][ii] * percent);
+                // The numbers here for i = 0 and i = 1 are the complex freq values
+                // printf("%d: %f\n", i, complex_freq);
+            }
+
+            if (i < n_cores_hc){
+                CFArrayRef core_dists = CFArrayGetValueAtIndex(unit_data->soc_samples.core_perf_data.distribution, i);
+                
+                for (int iii = 0; iii < per_cluster_n_cores; iii++) {
+                    CFArrayRef core_dists_arr = CFArrayGetValueAtIndex(core_dists, iii);
+                    if (ii > CFArrayGetCount(core_dists) - 1) break;
+                    CFNumberRef core_value = CFArrayGetValueAtIndex(core_dists_arr, ii);
+                    CFNumberGetValue(core_value, kCFNumberSInt64Type, &core_res);
+                    if (core_res != 0) {
+                        
+                    }
+                }
+            }        
+       }
+    }
+}
+
 int main(int argc, char* argv[]) {
     unit_data* unit = malloc(sizeof(unit_data));
 
     // initialize the cmd_data
     init_unit_data(unit);
     sample(unit);
+    format(unit);
 }
+    
 
