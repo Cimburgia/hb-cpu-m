@@ -11,13 +11,23 @@
     is there a way to see what core you are running on?
 
     In hertzbleed, we want to sample on either end of some hertzbleed code THEN compute delta
+    For HB Port:
+    - Do leakage model 03, HD or HW (shifts value over and back)
+        - Replace all freq and pwr 
+        - port assembly to arm
+    - what we want is instantaneous frequency measurement
+    - Seperate monitor thread that sits there and does short sleeps then calculates freq
+    - For assembly:
+        - Designed to saturate system -> use every register as possible
+            - Need to see what registers are available to us
+            - Pick the same number as what they did in hertzbleed
 */
 /* data structs
 */
 typedef struct cpu_samples_perf_data{
     CFMutableArrayRef sums; /* sum of state distribution ticks per-cluster */
     CFMutableArrayRef distribution; /* distribution[CLUSTER][STATE]: distribution of individual states */
-    CFMutableArrayRef freqs; /* calculated "active" frequency per-cluster */
+    //CFMutableArrayRef freqs; /* calculated "active" frequency per-cluster */
     CFMutableArrayRef residency; /* calculated "active" usage/residency per-cluster */
 } cpu_samples_perf_data;
 
@@ -210,9 +220,12 @@ static void sample(unit_data* unit_data) {
 static void format(unit_data* unit_data) {
     uint64_t res = 0;
     uint64_t core_res = 0;
-    
+    float complex_freqs[3] = {0,0,0};
+    float core_freqs[2][4] = {{0,0,0,0},
+                              {0,0,0,0}};
+
     for (int i = 0; i < n_cores_hc + 1; i++) {
-        float complex_freq = 0;
+        
         // Add all frequency values
         CFArrayRef complex_dists = CFArrayGetValueAtIndex(unit_data->soc_samples.cluster_perf_data.distribution, i);
         for (int ii = 0; ii < CFArrayGetCount(complex_dists); ii++) {
@@ -224,7 +237,7 @@ static void format(unit_data* unit_data) {
                 CFNumberRef sum_num = CFArrayGetValueAtIndex(unit_data->soc_samples.cluster_perf_data.sums, i);
                 CFNumberGetValue(sum_num, kCFNumberFloatType, &sum);
                 float percent = (res / sum);
-                complex_freq = complex_freq + (freq_state_cores[i][ii] * percent);
+                complex_freqs[i] = complex_freqs[i] + (freq_state_cores[i][ii] * percent);
                 // The numbers here for i = 0 and i = 1 are the complex freq values
                 // printf("%d: %f\n", i, complex_freq);
             }
@@ -233,12 +246,22 @@ static void format(unit_data* unit_data) {
                 CFArrayRef core_dists = CFArrayGetValueAtIndex(unit_data->soc_samples.core_perf_data.distribution, i);
                 
                 for (int iii = 0; iii < per_cluster_n_cores; iii++) {
+                   
+                    
                     CFArrayRef core_dists_arr = CFArrayGetValueAtIndex(core_dists, iii);
-                    if (ii > CFArrayGetCount(core_dists) - 1) break;
                     CFNumberRef core_value = CFArrayGetValueAtIndex(core_dists_arr, ii);
                     CFNumberGetValue(core_value, kCFNumberSInt64Type, &core_res);
                     if (core_res != 0) {
-                        
+                        // printf("i: %d\n", i);
+                        // printf("ii: %d\n", ii);
+                        // printf("iii: %d\n", iii);
+                        // printf("==\n");
+                        float sum;
+                        CFArrayRef sums = CFArrayGetValueAtIndex(unit_data->soc_samples.core_perf_data.sums, i);
+                        CFNumberRef sum_num = CFArrayGetValueAtIndex(sums, iii);
+                        CFNumberGetValue(sum_num, kCFNumberFloatType, &sum);
+                        float core_percent = (core_res / sum);
+                        core_freqs[i][iii] = core_freqs[i][iii] + (freq_state_cores[i][ii] * core_percent);
                     }
                 }
             }        
@@ -253,6 +276,8 @@ int main(int argc, char* argv[]) {
     init_unit_data(unit);
     sample(unit);
     format(unit);
+
+
 }
     
 
